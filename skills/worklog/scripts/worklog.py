@@ -14,15 +14,16 @@ Usage (run with uv, no install needed):
   uv run worklog.py scan     <text-file>...  # e.g. compiled resume bullets
 
 Data home: --home, else $WORKLOG_HOME, else ~/worklog. It holds config.yaml
-(themes + your private blocklist), logs/ and out/. Paths default to <home>/logs
+(themes + the private blocklist, both maintained by Claude), logs/ and out/. Paths default to <home>/logs
 and <home>/out/current.md. The skill itself holds no user data, so it can be
 reinstalled or updated without touching the log.
 
 Files are processed in order of header `window.from`. Later entries override
 earlier ones by id (append-only event log).
 
-Safety by default: validate/compile/due FAIL if any built-in or configured
-sensitive pattern matches an entry; scan applies the same patterns to free text.
+Safety by default: validate/compile/due FAIL if any term from the blocklist
+appears in an entry; scan applies the same check to free text. Nothing about
+what is sensitive is hard-coded here: Claude collects the terms while reading.
 """
 from __future__ import annotations
 
@@ -47,41 +48,20 @@ STATUSES = {"CONFIRMED", "IN_PROGRESS", "EXPLORED", "ABANDONED"}
 ROLES = {"owned", "led", "contributed", "assisted", "unclear"}
 REQUIRED = ["id", "op", "title", "theme", "category", "source", "period", "status",
             "my_role", "context", "actions", "result", "evidence", "updated"]
-# Generic patterns that must never appear in a log entry or compiled output,
-# whatever the employer. Org-specific terms (customers, codenames, internal
-# domains) live in the user's config.yaml, never in this file.
-# This is the deterministic backstop to references/safety.md, not a replacement.
 Pattern = tuple[str, re.Pattern[str]]
-BUILTIN_PATTERNS: list[Pattern] = [
-    ("IPv4 address", re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")),
-    ("AWS access key", re.compile(r"\b(?:AKIA|ASIA)[A-Z0-9]{16}\b")),
-    ("AWS ARN", re.compile(r"\barn:aws[a-z-]*:")),
-    ("GitHub token", re.compile(r"\b(?:gh[pousr]_[A-Za-z0-9]{20,}|github_pat_\w{20,})")),
-    ("Slack token", re.compile(r"\bxox[abprs]-[A-Za-z0-9-]{10,}")),
-    ("JWT", re.compile(r"\beyJ[\w-]{10,}\.[\w-]{10,}\.")),
-    ("private key", re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----")),
-    ("internal hostname", re.compile(r"\b[\w-]+(?:\.[\w-]+)*\.(?:internal|corp|intranet|lan)\b", re.I)),
-    ("credential assignment", re.compile(r"\b(?:password|passwd|secret|api[_-]?key|token)\s*[:=]\s*\S{6,}", re.I)),
-]
 
 CONFIG_NAME = "config.yaml"
 CONFIG_TEMPLATE = """\
-# worklog config. PRIVATE: it may list customer names and codenames.
-# Never commit or share this file. The skill repo does not contain it.
+# worklog config, maintained by Claude while extracting. You can edit it too.
+# PRIVATE: it lists customer names, codenames and internal names.
+# Never commit or share this file.
 
-# 6-10 themes; every entry's `theme` must be one of these.
+# Themes Claude derived from your work; every entry's `theme` uses one of these.
 themes: []
-#  - Application Security
-#  - Cloud Security
 
-# Plain words or phrases that must never appear in the log (case-insensitive,
-# whole-word). Customer/partner names, internal codenames, internal domains,
-# repo or service names, ticket-key prefixes like "SEC-".
+# Names Claude met in your chats that must never appear in the log
+# (case-insensitive, whole word). Never put secrets or keys here.
 blocked_terms: []
-
-# Optional regexes for anything a plain term can't express.
-sensitive_patterns: []
-#  - { label: "Jira key", regex: "\\bSEC-\\d+\\b" }
 """
 
 FENCE_RE = re.compile(r"^```ya?ml\s*\n(.*?)^```", re.M | re.S)
@@ -180,19 +160,10 @@ def resolve_home(arg: Path | None) -> Path:
     return (arg or Path(os.environ.get("WORKLOG_HOME") or Path.home() / "worklog")).expanduser()
 
 
-def compile_user_pattern(label: str, regex: str, rep: Report) -> Pattern | None:
-    """Turn one `sensitive_patterns` item from config.yaml into a Pattern.
-
-    Returning None drops the pattern; rep.err makes every command fail.
-    """
-    # TODO(human): decide what happens when the user's regex is invalid.
-    return (label, re.compile(regex, re.I))
-
-
 @dataclass
 class Config:
     themes: set[str] = field(default_factory=set)
-    patterns: list[Pattern] = field(default_factory=lambda: list(BUILTIN_PATTERNS))
+    patterns: list[Pattern] = field(default_factory=list)
     found: bool = False
 
 
@@ -213,13 +184,6 @@ def load_config(home: Path, rep: Report) -> Config:
         if term:
             cfg.patterns.append(("blocked term", re.compile(
                 rf"(?<!\w){re.escape(term)}(?!\w)", re.I)))
-    for item in data.get("sensitive_patterns") or []:
-        if not isinstance(item, dict) or not item.get("regex"):
-            rep.err(CONFIG_NAME, f"sensitive_patterns item needs a regex: {item!r}")
-            continue
-        if (pat := compile_user_pattern(str(item.get("label") or "custom pattern"),
-                                        str(item["regex"]), rep)):
-            cfg.patterns.append(pat)
     return cfg
 
 
@@ -416,17 +380,10 @@ def cmd_doctor(home: Path) -> int:
     rep = Report()
     cfg = load_config(home, rep)
     logs = sorted((home / "logs").glob("worklog-*.md")) if (home / "logs").is_dir() else []
-    needs = []
-    if not cfg.found:
-        needs.append("no config: run `init`, then the setup interview")
-    else:
-        if not cfg.themes:
-            needs.append("themes empty: ask the user for 6-10 themes")
-        if len(cfg.patterns) == len(BUILTIN_PATTERNS):
-            needs.append("blocked_terms empty: ask for customers, codenames, internal domains")
+    needs = [] if cfg.found else ["no config: run `init`"]
     print(f"home: {home}")
     print(f"config: {'ok' if cfg.found else 'missing'} "
-          f"({len(cfg.themes)} themes, {len(cfg.patterns) - len(BUILTIN_PATTERNS)} private patterns)")
+          f"({len(cfg.themes)} themes, {len(cfg.patterns)} blocked terms)")
     print(f"logs: {len(logs)} file(s)")
     if logs:
         _, state, lrep = load_all([str(home / "logs")], cfg)

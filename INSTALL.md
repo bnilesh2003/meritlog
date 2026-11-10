@@ -6,7 +6,7 @@ The user asked you to install this skill. Do this, in order, with no other chang
 2. **Run the installer** from the repo root: `./install.sh`
    - If it says `uv is required`, ask the user before installing uv (`brew install uv`), then re-run.
    - It copies `skills/worklog` to `~/.claude/skills/worklog` and creates the data home `~/worklog` (`config.yaml`, `logs/`, `out/`). It never overwrites existing data.
-3. **Run setup now.** Read `~/.claude/skills/worklog/SKILL.md` and follow **Mode: setup** (themes + blocked terms interview). Its last step runs `doctor`; it should print no `SETUP NEEDED` lines.
+3. **Nothing to configure.** The installer's `doctor` output should show no `SETUP NEEDED` lines. Themes and the private blocklist are built by the skill itself on the first `/worklog extract`.
 4. **Tell the user**:
    - It's installed. In a new Claude Code session (any folder), `/worklog` runs the next useful step; `/worklog extract 2026-10`, `/worklog compile xyz` and `/worklog update` also work.
    - Their data and private blocklist live in `~/worklog`, outside the repo; never commit it.

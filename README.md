@@ -8,7 +8,7 @@ A Claude skill that keeps an evidence-based, confidentiality-safe log of your wo
 
 - **extract**: reads your Claude chats one month at a time and records only what they say you did. No invented results or metrics.
 - **compile**: turns the log into resume text; missing numbers become `[NEEDS METRIC: …]` questions for you.
-- **Confidentiality by default**: entries are written to pass the "would I say this in an interview at a competitor?" test. A validator blocks any output that contains secrets, IPs, internal hostnames, or anything on your private blocklist.
+- **Confidentiality by default**: entries are written to pass the "would I say this in an interview at a competitor?" test. While reading your chats, Claude collects every sensitive name it meets (customers, colleagues, codenames, hostnames) into a private blocklist, and a validator refuses any log or output that contains one. Nothing about what's sensitive is hard-coded.
 
 ## Layout
 
@@ -19,7 +19,7 @@ skills/worklog/       the skill (SKILL.md, references/, scripts/worklog.py)
 tests/                uv run tests/test_worklog.py
 ```
 
-Your data is **not** in this repo: it lives in `~/worklog` (`$WORKLOG_HOME`): `config.yaml` (themes + private blocklist), `logs/`, `out/`.
+Your data is **not** in this repo: it lives in `~/worklog` (`$WORKLOG_HOME`): `config.yaml` (themes + private blocklist, maintained by Claude), `logs/`, `out/`.
 
 ## Updating
 

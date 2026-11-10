@@ -57,4 +57,4 @@ updated: YYYY-MM-DD
 
 ## Themes
 
-`theme` must be one of the `themes` listed in the user's `<home>/config.yaml` (the validator warns otherwise). Run setup if the list is empty.
+`theme` must be one of the `themes` listed in the user's `<home>/config.yaml` (the validator warns otherwise). If the list is empty, derive it during extract (see SKILL.md).

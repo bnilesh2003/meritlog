@@ -8,7 +8,7 @@ argument-hint: "setup | extract [YYYY-MM | from..to] | compile [xyz|car|star|sum
 
 | Mode | What it does |
 |------|--------------|
-| **setup** | One-time interview: themes + private blocklist. Runs automatically when needed. |
+| **setup** | Creates the data home. Runs automatically when needed; asks the user nothing. |
 | **extract** | Reads chats for a window (default: the next uncovered month) → `logs/worklog-YYYY-MM.md` |
 | **compile** | Turns the log into resume text with a strategy → `out/<strategy>-YYYY-MM-DD.md` |
 | **status** | Shows coverage, what's due, follow-ups |
@@ -21,7 +21,7 @@ The user's data lives in the **data home** (`$WORKLOG_HOME`, default `~/worklog`
 
 Run `WL doctor`. It prints the data home, setup state, and `next to extract`.
 - `uv` missing → tell the user to install it (`brew install uv` or `curl -LsSf https://astral.sh/uv/install.sh | sh`), with their OK, then continue.
-- Any `SETUP NEEDED` line → do **setup** first, then the requested mode.
+- Any `SETUP NEEDED` line → run `WL init`, then the requested mode.
 - No arguments given → do the most useful next thing: setup if needed, else extract `next to extract`, else status.
 
 ## Non-negotiable: confidentiality by default
@@ -30,12 +30,13 @@ Read `references/safety.md` **before** writing anything in any mode. Every entry
 
 ## Mode: setup
 
-1. `WL init` (safe to re-run; never overwrites config).
-2. Ask, in one message:
-   - Their role and main areas → propose 6-10 **themes**; let them edit.
-   - **Blocked terms**: customer/partner names, internal product codenames, internal domains, repo/service names, ticket prefixes. Explain these never leave the machine and make every command refuse output that contains them. The employer's own name is fine on a resume; don't block it unless asked.
-3. Write both into `<home>/config.yaml` (YAML lists). Don't echo the blocked terms back in chat beyond a count.
-4. `WL doctor` → no `SETUP NEEDED` lines. Ask which month their work history should start from, if extracting next.
+`WL init` (safe to re-run; never overwrites config). Nothing is asked up front: themes and the blocklist are built by you during extract. If no logs exist yet, ask only which month their work history should start from.
+
+## Config is yours to maintain
+
+`<home>/config.yaml` has two lists that you keep current; the script just enforces them.
+- **blocked_terms**: every sensitive name you meet while reading, as it actually appeared: customer and partner names, colleagues' names and handles, internal product or project codenames, hostnames, internal domains and URLs, repo/service/cluster names, ticket-key prefixes (e.g. `SEC-`), Slack channels. Add them **before** writing entries, so the validator catches any that slip through. Never add secrets, keys or tokens (that would store them); just never write them anywhere. The employer's own name and public tech (AWS, Kubernetes…) are not blocked. Mention only the count of new terms in chat, never the terms.
+- **themes**: if empty, derive 6-10 from the work you find (e.g. "Application Security", "Cloud Security", "Detection & Response"). Reuse them every month; add one only when work clearly fits none, and say so in the report.
 
 ## Mode: extract
 
@@ -46,14 +47,15 @@ Read `references/safety.md` **before** writing anything in any mode. Every entry
    - In **claude.ai** with past-chat tools → list chats by date in the window, then keyword-search for misses. Open each.
    - None available → say so and stop. Never reconstruct work from memory.
 3. **Prior state**: if logs exist, `WL compile` and read `<home>/out/current.md` header + manifest (`next_id`, existing ids). Else start at `WL-0001`.
-4. **Extract** in the format of `references/schema.md`, using only themes from config:
+4. **Update config** (see above): add new sensitive names to `blocked_terms`, fill `themes` if empty.
+5. **Extract** in the format of `references/schema.md`, using only themes from config:
    - Only what the source explicitly states. No outcome → `result: not stated`. Never invent metrics.
    - The user's actions ≠ your suggestions. Unclear if they acted → `EXPLORED`. "We did X" → `my_role: contributed` unless they said they owned/led it.
    - Continuing an existing id → `op: update`, same id, FULL entry. New work → `op: create`.
    - Skip trivial lookups. Apply safety rules **while** writing.
-5. **Write** `<home>/logs/worklog-YYYY-MM.md` with an honest header: `chats_read` = conversations actually opened, `coverage_gaps`, `omitted`.
-6. **Gate**: `WL validate`. Fix every ERROR (SENSITIVE included; generalize the text, don't weaken config) and re-run until it passes.
-7. **Report**: entries created/updated, coverage gaps, number omitted, the 3 most useful `open_questions`, and anything from `WL due`.
+6. **Write** `<home>/logs/worklog-YYYY-MM.md` with an honest header: `chats_read` = conversations actually opened, `coverage_gaps`, `omitted`.
+7. **Gate**: `WL validate`. Fix every ERROR (SENSITIVE included; generalize the text, never remove a term from config to make it pass) and re-run until it passes. Then re-read the file yourself against `references/safety.md`: the blocklist only catches names, not descriptions of weaknesses or architecture.
+8. **Report**: entries created/updated, themes used or added, count of new blocked terms, coverage gaps, number omitted, the 3 most useful `open_questions`, and anything from `WL due`.
 
 ## Mode: compile
 
@@ -74,4 +76,4 @@ Read `<skill>/.installed-from`; it holds the repo path. Run `git -C <repo> pull 
 
 ## claude.ai (no filesystem)
 
-No data home persists. At the start, ask the user to attach their latest `current.md` (and `config.yaml` if they're comfortable; otherwise ask for themes and blocked terms in chat). Return new files as downloads, and tell them to save them into their data home. If code execution is available, run the script on the uploaded files; otherwise apply the safety checklist by hand and say so.
+No data home persists. At the start, ask the user to attach their latest `current.md` and `config.yaml` if they have them; otherwise build both from the chats as above. Return new files as downloads, and tell them to save them into their data home. If code execution is available, run the script on the uploaded files; otherwise apply the safety checklist by hand and say so.

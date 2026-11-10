@@ -187,12 +187,13 @@ class WorklogTest(unittest.TestCase):
     # ---- safety by default -------------------------------------------------
     def leak(self):
         self.good_pair()
+        self.set_config("blocked_terms: [Acme Bank]\n")
         p = self.dir / "worklog-2026-02.md"
-        p.write_text(p.read_text().replace("Rolled out", "Rolled out to 10.2.3.4"))
+        p.write_text(p.read_text().replace("Rolled out", "Rolled out for acme bank"))
 
     def test_validate_fails_on_sensitive_hit(self):
         self.leak()
-        self.assertErrors("IPv4 address")
+        self.assertErrors("blocked term")
         self.assertEqual(self.run_cli("validate", str(self.dir)), 1)
 
     def test_compile_refuses_to_write_on_sensitive_hit(self):
@@ -202,16 +203,12 @@ class WorklogTest(unittest.TestCase):
         self.assertFalse(out.exists())
 
     def test_scan_free_text(self):
+        self.set_config("blocked_terms: [bastion-07]\n")
         clean, dirty = self.dir / "clean.md", self.dir / "dirty.md"
         clean.write_text("- Reduced triage time ~50% across ~40 services [WL-0001]\n")
-        dirty.write_text("- Hardened bastion at 192.168.10.5 [WL-0002]\n")
+        dirty.write_text("- Hardened BASTION-07 access [WL-0002]\n")
         self.assertEqual(self.run_cli("scan", str(clean)), 0)
         self.assertEqual(self.run_cli("scan", str(dirty)), 1)
-
-    def test_builtin_secret_patterns(self):
-        f = self.dir / "s.md"
-        f.write_text("key AKIAABCDEFGHIJKLMNOP and host build-01.corp\n")
-        self.assertEqual(self.run_cli("scan", str(f)), 1)
 
     # ---- data home + private config ---------------------------------------
     def test_init_creates_home_and_keeps_config(self):
@@ -244,11 +241,10 @@ class WorklogTest(unittest.TestCase):
         self.set_config("blocked_terms: [Rolled out]\n")
         self.assertEqual(self.run_cli("validate", str(self.dir)), 1)
 
-    def test_config_regex_pattern(self):
-        self.set_config('sensitive_patterns:\n  - { label: "Jira key", regex: "\\\\bSEC-\\\\d+\\\\b" }\n')
+    def test_nothing_blocked_without_config(self):
         f = self.dir / "t.md"
-        f.write_text("- Closed SEC-1234\n")
-        self.assertEqual(self.run_cli("scan", str(f)), 1)
+        f.write_text("- Rolled out to 10.2.3.4 for Acme\n")
+        self.assertEqual(self.run_cli("scan", str(f)), 0)
 
     def test_themes_come_from_config(self):
         self.good_pair()
@@ -262,8 +258,7 @@ class WorklogTest(unittest.TestCase):
         with contextlib.redirect_stdout(buf):
             self.run_cli("doctor")
         self.assertIn("SETUP NEEDED: no config", buf.getvalue())
-        self.run_cli("init")
-        self.set_config("themes: [AppSec]\nblocked_terms: [Acme]\n")
+        self.run_cli("init")  # empty themes/blocklist are fine: Claude fills them
         buf = io.StringIO()
         with contextlib.redirect_stdout(buf):
             self.run_cli("doctor")
