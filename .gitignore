@@ -1,0 +1,6 @@
+dist/
+__pycache__/
+.installed-from
+# user data never belongs here
+config.yaml
+worklog-*.md
