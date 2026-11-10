@@ -2,16 +2,16 @@
 # requires-python = ">=3.10,<3.15"
 # dependencies = ["pyyaml>=6"]
 # ///
-"""Tests for the worklog skill script, synthetic fixtures only.
-Run from the repo root:  uv run tests/test_worklog.py"""
+"""Tests for the meritlog skill script, synthetic fixtures only.
+Run from the repo root:  uv run tests/test_meritlog.py"""
 import sys
 import tempfile
 import unittest
 from pathlib import Path
 
-SCRIPTS = Path(__file__).resolve().parents[1] / "skills" / "worklog" / "scripts"
+SCRIPTS = Path(__file__).resolve().parents[1] / "skills" / "meritlog" / "scripts"
 sys.path.insert(0, str(SCRIPTS))
-import worklog  # noqa: E402
+import meritlog  # noqa: E402
 
 ENTRY = """\
 ### {id}: {title}
@@ -40,7 +40,7 @@ updated: 2026-01-20
 def make_file(window, next_id, manifest_rows, entries, chats_read=5):
     rows = "\n".join(f"| {i} | t | AppSec | project | {s} | 2026-01-20 |" for i, s in manifest_rows)
     return f"""---
-schema: worklog/v1
+schema: meritlog/v1
 window: {{ from: {window[0]}, to: {window[1]} }}
 generated_on: 2026-02-01
 next_id: {next_id}
@@ -67,7 +67,7 @@ JAN = ("2026-01-01", "2026-01-31")
 FEB = ("2026-02-01", "2026-02-28")
 
 
-class WorklogTest(unittest.TestCase):
+class MeritlogTest(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.dir = Path(self.tmp.name)
@@ -80,33 +80,33 @@ class WorklogTest(unittest.TestCase):
         (self.dir / name).write_text(text)
 
     def run_cli(self, *args):
-        return worklog.main(["--home", str(self.home), *args])
+        return meritlog.main(["--home", str(self.home), *args])
 
     def cfg(self):
-        return worklog.load_config(self.home, worklog.Report())
+        return meritlog.load_config(self.home, meritlog.Report())
 
     def set_config(self, text):
         self.home.mkdir(exist_ok=True)
         (self.home / "config.yaml").write_text(text)
 
     def good_pair(self):
-        self.write("worklog-2026-01.md", make_file(
-            JAN, "WL-0003", [("WL-0001", "IN_PROGRESS"), ("WL-0002", "EXPLORED")],
-            [entry("WL-0001", fu="2026-02"), entry("WL-0002", status="EXPLORED", title="Other")]))
-        self.write("worklog-2026-02.md", make_file(
-            FEB, "WL-0004",
-            [("WL-0001", "CONFIRMED"), ("WL-0002", "EXPLORED"), ("WL-0003", "CONFIRMED")],
-            [entry("WL-0001", op="update", status="CONFIRMED", end="2026-02",
+        self.write("meritlog-2026-01.md", make_file(
+            JAN, "ML-0003", [("ML-0001", "IN_PROGRESS"), ("ML-0002", "EXPLORED")],
+            [entry("ML-0001", fu="2026-02"), entry("ML-0002", status="EXPLORED", title="Other")]))
+        self.write("meritlog-2026-02.md", make_file(
+            FEB, "ML-0004",
+            [("ML-0001", "CONFIRMED"), ("ML-0002", "EXPLORED"), ("ML-0003", "CONFIRMED")],
+            [entry("ML-0001", op="update", status="CONFIRMED", end="2026-02",
                    result="Rolled out", fu="2026-02"),
-             entry("WL-0003", status="CONFIRMED", title="New", result="Done")]))
+             entry("ML-0003", status="CONFIRMED", title="New", result="Done")]))
 
     # ---- happy path ------------------------------------------------------
     def test_valid_pair_passes_and_latest_wins(self):
         self.good_pair()
         self.assertEqual(self.run_cli("validate", str(self.dir)), 0)
-        _, state, rep = worklog.load_all([str(self.dir)], self.cfg())
+        _, state, rep = meritlog.load_all([str(self.dir)], self.cfg())
         self.assertEqual(rep.errors, [])
-        self.assertEqual(state["WL-0001"]["status"], "CONFIRMED")
+        self.assertEqual(state["ML-0001"]["status"], "CONFIRMED")
         self.assertEqual(len(state), 3)
 
     def test_compile_output_revalidates(self):
@@ -115,80 +115,80 @@ class WorklogTest(unittest.TestCase):
         out.parent.mkdir()
         self.assertEqual(self.run_cli("compile", str(self.dir), "-o", str(out)), 0)
         text = out.read_text()
-        self.assertIn("next_id: WL-0004", text)
-        self.assertIn("| WL-0003 |", text)
+        self.assertIn("next_id: ML-0004", text)
+        self.assertIn("| ML-0003 |", text)
         # regression: the snapshot must itself be a valid log (no dangling op: update)
         self.assertNotIn("op: update", text)
         self.assertEqual(self.run_cli("validate", str(out)), 0)
 
     def test_compiled_mixed_with_monthly_is_error(self):
         self.good_pair()
-        out = self.dir / "worklog-zz-compiled.md"
+        out = self.dir / "meritlog-zz-compiled.md"
         self.assertEqual(self.run_cli("compile", str(self.dir), "-o", str(out)), 0)
         self.assertErrors("compiled snapshot mixed")
 
     # ---- failure modes the LLM is likely to produce ------------------------
     def assertErrors(self, needle):
-        _, _, rep = worklog.load_all([str(self.dir)], self.cfg())
+        _, _, rep = meritlog.load_all([str(self.dir)], self.cfg())
         self.assertTrue(any(needle in e for e in rep.errors),
                         f"expected error containing {needle!r}, got {rep.errors}")
 
     def test_create_of_existing_id(self):
         self.good_pair()
-        p = self.dir / "worklog-2026-02.md"
+        p = self.dir / "meritlog-2026-02.md"
         p.write_text(p.read_text().replace("op: update", "op: create"))
         self.assertErrors("already exists")
 
     def test_update_of_unknown_id(self):
-        self.write("worklog-2026-01.md", make_file(
-            JAN, "WL-0002", [("WL-0001", "IN_PROGRESS")], [entry("WL-0001", op="update")]))
+        self.write("meritlog-2026-01.md", make_file(
+            JAN, "ML-0002", [("ML-0001", "IN_PROGRESS")], [entry("ML-0001", op="update")]))
         self.assertErrors("never created")
 
     def test_manifest_dropped_row(self):
         self.good_pair()
-        p = self.dir / "worklog-2026-02.md"
-        p.write_text(p.read_text().replace("| WL-0002 | t | AppSec | project | EXPLORED | 2026-01-20 |\n", ""))
-        self.assertErrors("manifest is missing WL-0002")
+        p = self.dir / "meritlog-2026-02.md"
+        p.write_text(p.read_text().replace("| ML-0002 | t | AppSec | project | EXPLORED | 2026-01-20 |\n", ""))
+        self.assertErrors("manifest is missing ML-0002")
 
     def test_manifest_status_drift(self):
         self.good_pair()
-        p = self.dir / "worklog-2026-02.md"
-        p.write_text(p.read_text().replace("| WL-0003 | t | AppSec | project | CONFIRMED",
-                                           "| WL-0003 | t | AppSec | project | IN_PROGRESS"))
+        p = self.dir / "meritlog-2026-02.md"
+        p.write_text(p.read_text().replace("| ML-0003 | t | AppSec | project | CONFIRMED",
+                                           "| ML-0003 | t | AppSec | project | IN_PROGRESS"))
         self.assertErrors("disagrees")
 
     def test_wrong_next_id(self):
-        self.write("worklog-2026-01.md", make_file(
-            JAN, "WL-0009", [("WL-0001", "IN_PROGRESS")], [entry("WL-0001")]))
-        self.assertErrors("expected WL-0002")
+        self.write("meritlog-2026-01.md", make_file(
+            JAN, "ML-0009", [("ML-0001", "IN_PROGRESS")], [entry("ML-0001")]))
+        self.assertErrors("expected ML-0002")
 
     def test_unresolved_session_end(self):
-        self.write("worklog-2026-01.md", make_file(
-            JAN, "WL-0001", [], [entry("WL-TBD")]))
+        self.write("meritlog-2026-01.md", make_file(
+            JAN, "ML-0001", [], [entry("ML-TBD")]))
         self.assertErrors("unresolved session-end")
 
     def test_bad_enum(self):
-        self.write("worklog-2026-01.md", make_file(
-            JAN, "WL-0002", [("WL-0001", "DONE")], [entry("WL-0001", status="DONE")]))
+        self.write("meritlog-2026-01.md", make_file(
+            JAN, "ML-0002", [("ML-0001", "DONE")], [entry("ML-0001", status="DONE")]))
         self.assertErrors("status='DONE'")
 
     def test_window_gap_is_warning(self):
         self.good_pair()
-        p = self.dir / "worklog-2026-02.md"
+        p = self.dir / "meritlog-2026-02.md"
         p.write_text(p.read_text().replace("from: 2026-02-01", "from: 2026-02-10"))
-        _, _, rep = worklog.load_all([str(self.dir)], self.cfg())
+        _, _, rep = meritlog.load_all([str(self.dir)], self.cfg())
         self.assertTrue(any("window gap" in w for w in rep.warnings))
 
     def test_due_lists_followups(self):
         self.good_pair()
-        _, state, _ = worklog.load_all([str(self.dir)], self.cfg())
-        self.assertEqual(state["WL-0001"]["follow_up_after"], "2026-02")
+        _, state, _ = meritlog.load_all([str(self.dir)], self.cfg())
+        self.assertEqual(state["ML-0001"]["follow_up_after"], "2026-02")
 
     # ---- safety by default -------------------------------------------------
     def leak(self):
         self.good_pair()
         self.set_config("blocked_terms: [Acme Bank]\n")
-        p = self.dir / "worklog-2026-02.md"
+        p = self.dir / "meritlog-2026-02.md"
         p.write_text(p.read_text().replace("Rolled out", "Rolled out for acme bank"))
 
     def test_validate_fails_on_sensitive_hit(self):
@@ -205,8 +205,8 @@ class WorklogTest(unittest.TestCase):
     def test_scan_free_text(self):
         self.set_config("blocked_terms: [bastion-07]\n")
         clean, dirty = self.dir / "clean.md", self.dir / "dirty.md"
-        clean.write_text("- Reduced triage time ~50% across ~40 services [WL-0001]\n")
-        dirty.write_text("- Hardened BASTION-07 access [WL-0002]\n")
+        clean.write_text("- Reduced triage time ~50% across ~40 services [ML-0001]\n")
+        dirty.write_text("- Hardened BASTION-07 access [ML-0002]\n")
         self.assertEqual(self.run_cli("scan", str(clean)), 0)
         self.assertEqual(self.run_cli("scan", str(dirty)), 1)
 
@@ -222,7 +222,7 @@ class WorklogTest(unittest.TestCase):
     def test_default_paths_use_home(self):
         self.good_pair()
         self.run_cli("init")
-        for f in self.dir.glob("worklog-*.md"):
+        for f in self.dir.glob("meritlog-*.md"):
             f.rename(self.home / "logs" / f.name)
         self.assertEqual(self.run_cli("validate"), 0)
         self.assertEqual(self.run_cli("compile"), 0)
@@ -249,7 +249,7 @@ class WorklogTest(unittest.TestCase):
     def test_themes_come_from_config(self):
         self.good_pair()
         self.set_config("themes: [Cloud]\n")
-        _, _, rep = worklog.load_all([str(self.dir)], self.cfg())
+        _, _, rep = meritlog.load_all([str(self.dir)], self.cfg())
         self.assertTrue(any("not in THEMES" in w for w in rep.warnings))
 
     def test_doctor_reports_setup_needed(self):

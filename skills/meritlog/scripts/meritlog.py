@@ -3,17 +3,17 @@
 # requires-python = ">=3.10,<3.15"
 # dependencies = ["pyyaml>=6"]
 # ///
-"""Validate, compile and safety-check worklog/v1 files.
+"""Validate, compile and safety-check meritlog/v1 files.
 
 Usage (run with uv, no install needed):
-  uv run worklog.py init                     # create the data home (safe to re-run)
-  uv run worklog.py doctor                   # setup status + what to extract next
-  uv run worklog.py validate [files-or-dir...]
-  uv run worklog.py compile  [files-or-dir...] [-o out.md]
-  uv run worklog.py due      [files-or-dir...] [--today YYYY-MM-DD]
-  uv run worklog.py scan     <text-file>...  # e.g. compiled resume bullets
+  uv run meritlog.py init                     # create the data home (safe to re-run)
+  uv run meritlog.py doctor                   # setup status + what to extract next
+  uv run meritlog.py validate [files-or-dir...]
+  uv run meritlog.py compile  [files-or-dir...] [-o out.md]
+  uv run meritlog.py due      [files-or-dir...] [--today YYYY-MM-DD]
+  uv run meritlog.py scan     <text-file>...  # e.g. compiled resume bullets
 
-Data home: --home, else $WORKLOG_HOME, else ~/worklog. It holds config.yaml
+Data home: --home, else $MERITLOG_HOME, else ~/meritlog. It holds config.yaml
 (themes + the private blocklist, both maintained by Claude), logs/ and out/. Paths default to <home>/logs
 and <home>/out/current.md. The skill itself holds no user data, so it can be
 reinstalled or updated without touching the log.
@@ -38,7 +38,7 @@ from pathlib import Path
 import yaml
 
 # ---------------------------------------------------------------- schema ----
-ID_RE = re.compile(r"^WL-(\d{4})$")
+ID_RE = re.compile(r"^ML-(\d{4})$")
 MONTH_RE = re.compile(r"^\d{4}-\d{2}$")
 OPS = {"create", "update"}
 CATEGORIES = {"project", "collaboration_mentorship", "design_docs", "org_building",
@@ -52,7 +52,7 @@ Pattern = tuple[str, re.Pattern[str]]
 
 CONFIG_NAME = "config.yaml"
 CONFIG_TEMPLATE = """\
-# worklog config, maintained by Claude while extracting. You can edit it too.
+# meritlog config, maintained by Claude while extracting. You can edit it too.
 # PRIVATE: it lists customer names, codenames and internal names.
 # Never commit or share this file.
 
@@ -66,7 +66,7 @@ blocked_terms: []
 
 FENCE_RE = re.compile(r"^```ya?ml\s*\n(.*?)^```", re.M | re.S)
 FRONT_RE = re.compile(r"\A---\s*\n(.*?)\n---\s*\n", re.S)
-ROW_RE = re.compile(r"^\|\s*(WL-\d{4})\s*\|(.*)\|\s*$", re.M)
+ROW_RE = re.compile(r"^\|\s*(ML-\d{4})\s*\|(.*)\|\s*$", re.M)
 
 
 # ----------------------------------------------------------------- model ----
@@ -112,7 +112,7 @@ def id_num(wid: str) -> int:
 
 
 def fmt_id(n: int) -> str:
-    return f"WL-{n:04d}"
+    return f"ML-{n:04d}"
 
 
 # ---------------------------------------------------------------- parsing ---
@@ -152,12 +152,12 @@ def parse_file(path: Path, rep: Report) -> LogFile | None:
 def expand(paths: list[str]) -> list[Path]:
     out: list[Path] = []
     for p in map(Path, paths):
-        out.extend(sorted(p.glob("worklog-*.md")) if p.is_dir() else [p])
+        out.extend(sorted(p.glob("meritlog-*.md")) if p.is_dir() else [p])
     return out
 
 
 def resolve_home(arg: Path | None) -> Path:
-    return (arg or Path(os.environ.get("WORKLOG_HOME") or Path.home() / "worklog")).expanduser()
+    return (arg or Path(os.environ.get("MERITLOG_HOME") or Path.home() / "meritlog")).expanduser()
 
 
 @dataclass
@@ -191,11 +191,11 @@ def load_config(home: Path, rep: Report) -> Config:
 def check_entry(e: dict, where: str, themes: set[str], rep: Report) -> None:
     wid = e.get("id", "?")
     w = f"{where} {wid}"
-    if wid == "WL-TBD":
+    if wid == "ML-TBD":
         rep.err(w, "unresolved session-end entry; give it a real id")
         return
     if not ID_RE.match(str(wid)):
-        rep.err(w, "id must look like WL-0001")
+        rep.err(w, "id must look like ML-0001")
     for k in REQUIRED:
         if e.get(k) in (None, "", []):
             rep.err(w, f"missing required field '{k}'")
@@ -239,8 +239,8 @@ def build_state(files: list[LogFile], themes: set[str], rep: Report) -> dict[str
     for f in files:
         name = f.path.name
         h = f.header
-        if h.get("schema") != "worklog/v1":
-            rep.err(name, f"schema must be worklog/v1 (got {h.get('schema')!r})")
+        if h.get("schema") != "meritlog/v1":
+            rep.err(name, f"schema must be meritlog/v1 (got {h.get('schema')!r})")
         win = h.get("window") or {}
         if not win.get("from") or not win.get("to"):
             rep.err(name, "header.window.from/to missing")
@@ -299,7 +299,7 @@ def load_all(paths: list[str], cfg: Config, rep: Report | None = None
     files = [f for p in expand(paths) if (f := parse_file(p, rep))]
     files.sort(key=lambda f: str((f.header.get("window") or {}).get("from", "")))
     if not files:
-        rep.err("input", "no worklog files found")
+        rep.err("input", "no meritlog files found")
         return files, {}, rep
     state = build_state(files, cfg.themes, rep)
     check_manifest(files[-1], state, rep)
@@ -312,7 +312,7 @@ def load_all(paths: list[str], cfg: Config, rep: Report | None = None
 def render(files: list[LogFile], state: dict[str, dict]) -> str:
     ids = sorted(state, key=id_num)
     header = {
-        "schema": "worklog/v1",
+        "schema": "meritlog/v1",
         "file_type": "compiled",
         "compiled_from": [f.path.name for f in files],
         "window": {"from": files[0].header["window"]["from"],
@@ -379,7 +379,7 @@ def cmd_doctor(home: Path) -> int:
     """Machine-readable status lines the skill reads before every run."""
     rep = Report()
     cfg = load_config(home, rep)
-    logs = sorted((home / "logs").glob("worklog-*.md")) if (home / "logs").is_dir() else []
+    logs = sorted((home / "logs").glob("meritlog-*.md")) if (home / "logs").is_dir() else []
     needs = [] if cfg.found else ["no config: run `init`"]
     print(f"home: {home}")
     print(f"config: {'ok' if cfg.found else 'missing'} "
@@ -406,7 +406,7 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--home", type=Path, default=None,
-                    help="data home (default: $WORKLOG_HOME or ~/worklog)")
+                    help="data home (default: $MERITLOG_HOME or ~/meritlog)")
     sub = ap.add_subparsers(dest="cmd", required=True)
     sub.add_parser("init")
     sub.add_parser("doctor")

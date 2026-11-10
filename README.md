@@ -1,8 +1,8 @@
-# worklog-skill
+# meritlog
 
 A Claude skill that keeps an evidence-based, confidentiality-safe log of your work and turns it into resume bullets (XYZ, CAR), STAR interview stories, or a profile summary.
 
-**To install, tell any Claude Code session:** "Install the skill from <this repo>". It follows [INSTALL.md](INSTALL.md), sets itself up, and is ready to use as `/worklog`.
+**To install, tell any Claude Code session:** "Install the skill from <this repo>". It follows [INSTALL.md](INSTALL.md), sets itself up, and is ready to use as `/meritlog`.
 
 ## What it does
 
@@ -15,12 +15,12 @@ A Claude skill that keeps an evidence-based, confidentiality-safe log of your wo
 ```
 INSTALL.md            steps for the installing agent
 install.sh            install/update · --zip for claude.ai · --uninstall
-skills/worklog/       the skill (SKILL.md, references/, scripts/worklog.py)
-tests/                uv run tests/test_worklog.py
+skills/meritlog/       the skill (SKILL.md, references/, scripts/meritlog.py)
+tests/                uv run tests/test_meritlog.py
 ```
 
-Your data is **not** in this repo: it lives in `~/worklog` (`$WORKLOG_HOME`): `config.yaml` (themes + private blocklist, maintained by Claude), `logs/`, `out/`.
+Your data is **not** in this repo: it lives in `~/meritlog` (`$MERITLOG_HOME`): `config.yaml` (themes + private blocklist, maintained by Claude), `logs/`, `out/`.
 
 ## Updating
 
-`/worklog update`, or `git pull && ./install.sh`. Your data home is never touched.
+`/meritlog update`, or `git pull && ./install.sh`. Your data home is never touched.

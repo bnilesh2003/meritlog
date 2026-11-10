@@ -1,13 +1,13 @@
-# worklog/v1 file format
+# meritlog/v1 file format
 
-One file per month: `worklog-YYYY-MM.md`. Files are append-only; for each id, the entry in the newest file wins.
+One file per month: `meritlog-YYYY-MM.md`. Files are append-only; for each id, the entry in the newest file wins.
 
 ````
 ---
-schema: worklog/v1
+schema: meritlog/v1
 window: { from: YYYY-MM-DD, to: YYYY-MM-DD }   # dates searched in this file
 generated_on: YYYY-MM-DD
-next_id: WL-0043                               # first unused id after this file
+next_id: ML-0043                               # first unused id after this file
 chats_read: 17                                 # conversations actually opened
 coverage_gaps: []                              # ranges or chats that could not be read
 omitted: 0                                     # items dropped for confidentiality
@@ -19,9 +19,9 @@ omitted: 0                                     # items dropped for confidentiali
 
 ## Entries
 
-### WL-0001: Short title
+### ML-0001: Short title
 ```yaml
-id: WL-0001
+id: ML-0001
 op: create                        # create | update (update = full replacement of an existing id)
 title: ""
 theme: ""                         # one value from config.yaml `themes`

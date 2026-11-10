@@ -10,12 +10,12 @@ Laszlo Bock's (former Google SVP of People Operations) formula:
 - Start with a strong past-tense verb; one line, about 25 words at most.
 - No Y available → write it as CAR and add `[NEEDS METRIC: <specific question>]`.
 
-> Reduced critical-vulnerability remediation time by ~50% across ~40 services by building an automated SAST triage pipeline in CI. [WL-0012]
+> Reduced critical-vulnerability remediation time by ~50% across ~40 services by building an automated SAST triage pipeline in CI. [ML-0012]
 
 ## car: Challenge → Action → Result
 For strong work that has no metric. Good when the challenge itself shows seniority.
 
-> Faced with inconsistent secrets handling across teams, designed and rolled out a centralized secrets-management pattern, now the default for new services. [WL-0007]
+> Faced with inconsistent secrets handling across teams, designed and rolled out a centralized secrets-management pattern, now the default for new services. [ML-0007]
 
 ## star: interview stories (not resume bullets)
 Situation, Task, Action, Result, written as 4 short paragraphs per entry, each 150-200 words in total. Use it for the user's strongest 5-8 entries. Include ABANDONED or partly successful work when it makes a good "what did you learn" story, and label it as such. Add a "Likely follow-up questions" list under each story.

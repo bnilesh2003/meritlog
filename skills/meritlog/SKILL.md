@@ -1,27 +1,27 @@
 ---
-name: worklog
-description: Build and use an evidence-based, confidentiality-safe work log for resume writing. Use when the user asks to set up, extract/log/record the work they did (from Claude chat history, Claude Code sessions, or a claude.ai data export), compile/turn their work log into resume bullets, STAR stories or summaries (XYZ, CAR, STAR), or update/check the worklog skill itself.
+name: meritlog
+description: Build and use an evidence-based, confidentiality-safe work log for resume writing. Use when the user asks to set up, extract/log/record the work they did (from Claude chat history, Claude Code sessions, or a claude.ai data export), compile/turn their work log into resume bullets, STAR stories or summaries (XYZ, CAR, STAR), or update/check the meritlog skill itself.
 argument-hint: "setup | extract [YYYY-MM | from..to] | compile [xyz|car|star|summary|all] [job description] | status | update"
 ---
 
-# Worklog
+# Meritlog
 
 | Mode | What it does |
 |------|--------------|
 | **setup** | Creates the data home. Runs automatically when needed; asks the user nothing. |
-| **extract** | Reads chats for a window (default: the next uncovered month) → `logs/worklog-YYYY-MM.md` |
+| **extract** | Reads chats for a window (default: the next uncovered month) → `logs/meritlog-YYYY-MM.md` |
 | **compile** | Turns the log into resume text with a strategy → `out/<strategy>-YYYY-MM-DD.md` |
 | **status** | Shows coverage, what's due, follow-ups |
 | **update** | Pulls the latest skill from its repo and reinstalls |
 
-`<skill>` = this skill's directory. `WL` = `uv run <skill>/scripts/worklog.py`.
-The user's data lives in the **data home** (`$WORKLOG_HOME`, default `~/worklog`): `config.yaml`, `logs/`, `out/`. Never write user data inside `<skill>`.
+`<skill>` = this skill's directory. `ML` = `uv run <skill>/scripts/meritlog.py`.
+The user's data lives in the **data home** (`$MERITLOG_HOME`, default `~/meritlog`): `config.yaml`, `logs/`, `out/`. Never write user data inside `<skill>`.
 
 ## Step 0, every invocation
 
-Run `WL doctor`. It prints the data home, setup state, and `next to extract`.
+Run `ML doctor`. It prints the data home, setup state, and `next to extract`.
 - `uv` missing → tell the user to install it (`brew install uv` or `curl -LsSf https://astral.sh/uv/install.sh | sh`), with their OK, then continue.
-- Any `SETUP NEEDED` line → run `WL init`, then the requested mode.
+- Any `SETUP NEEDED` line → run `ML init`, then the requested mode.
 - No arguments given → do the most useful next thing: setup if needed, else extract `next to extract`, else status.
 
 ## Non-negotiable: confidentiality by default
@@ -30,7 +30,7 @@ Read `references/safety.md` **before** writing anything in any mode. Every entry
 
 ## Mode: setup
 
-`WL init` (safe to re-run; never overwrites config). Nothing is asked up front: themes and the blocklist are built by you during extract. If no logs exist yet, ask only which month their work history should start from.
+`ML init` (safe to re-run; never overwrites config). Nothing is asked up front: themes and the blocklist are built by you during extract. If no logs exist yet, ask only which month their work history should start from.
 
 ## Config is yours to maintain
 
@@ -46,29 +46,29 @@ Read `references/safety.md` **before** writing anything in any mode. Every entry
    - In **Claude Code** → `~/.claude/projects/**/*.jsonl`, records whose `timestamp` falls in the window. Read user messages and assistant text; skip tool-output blobs.
    - In **claude.ai** with past-chat tools → list chats by date in the window, then keyword-search for misses. Open each.
    - None available → say so and stop. Never reconstruct work from memory.
-3. **Prior state**: if logs exist, `WL compile` and read `<home>/out/current.md` header + manifest (`next_id`, existing ids). Else start at `WL-0001`.
+3. **Prior state**: if logs exist, `ML compile` and read `<home>/out/current.md` header + manifest (`next_id`, existing ids). Else start at `ML-0001`.
 4. **Update config** (see above): add new sensitive names to `blocked_terms`, fill `themes` if empty.
 5. **Extract** in the format of `references/schema.md`, using only themes from config:
    - Only what the source explicitly states. No outcome → `result: not stated`. Never invent metrics.
    - The user's actions ≠ your suggestions. Unclear if they acted → `EXPLORED`. "We did X" → `my_role: contributed` unless they said they owned/led it.
    - Continuing an existing id → `op: update`, same id, FULL entry. New work → `op: create`.
    - Skip trivial lookups. Apply safety rules **while** writing.
-6. **Write** `<home>/logs/worklog-YYYY-MM.md` with an honest header: `chats_read` = conversations actually opened, `coverage_gaps`, `omitted`.
-7. **Gate**: `WL validate`. Fix every ERROR (SENSITIVE included; generalize the text, never remove a term from config to make it pass) and re-run until it passes. Then re-read the file yourself against `references/safety.md`: the blocklist only catches names, not descriptions of weaknesses or architecture.
-8. **Report**: entries created/updated, themes used or added, count of new blocked terms, coverage gaps, number omitted, the 3 most useful `open_questions`, and anything from `WL due`.
+6. **Write** `<home>/logs/meritlog-YYYY-MM.md` with an honest header: `chats_read` = conversations actually opened, `coverage_gaps`, `omitted`.
+7. **Gate**: `ML validate`. Fix every ERROR (SENSITIVE included; generalize the text, never remove a term from config to make it pass) and re-run until it passes. Then re-read the file yourself against `references/safety.md`: the blocklist only catches names, not descriptions of weaknesses or architecture.
+8. **Report**: entries created/updated, themes used or added, count of new blocked terms, coverage gaps, number omitted, the 3 most useful `open_questions`, and anything from `ML due`.
 
 ## Mode: compile
 
-1. `WL compile`, then read `<home>/out/current.md` (current state, newest version of each entry).
+1. `ML compile`, then read `<home>/out/current.md` (current state, newest version of each entry).
 2. Read `references/strategies.md`; apply the strategy (default `xyz`).
-3. **Evidence rules**: bullets only from `CONFIRMED`; `IN_PROGRESS` → "leading/driving" wording; `EXPLORED` → skills context only. Only numbers in `metrics`/`scope`; otherwise `[NEEDS METRIC: <question>]`, never estimate. Every bullet ends with its ids, e.g. `[WL-0012]`.
+3. **Evidence rules**: bullets only from `CONFIRMED`; `IN_PROGRESS` → "leading/driving" wording; `EXPLORED` → skills context only. Only numbers in `metrics`/`scope`; otherwise `[NEEDS METRIC: <question>]`, never estimate. Every bullet ends with its ids, e.g. `[ML-0012]`.
 4. Job description given → rank by relevance; mirror its terms only where an entry genuinely supports them; list unsupported requirements as gaps.
-5. Write `<home>/out/<strategy>-YYYY-MM-DD.md`, then `WL scan` it and fix findings. Then do the manual safety pass (combined entries can reveal more than single ones).
+5. Write `<home>/out/<strategy>-YYYY-MM-DD.md`, then `ML scan` it and fix findings. Then do the manual safety pass (combined entries can reveal more than single ones).
 6. List the `NEEDS METRIC` questions for the user.
 
 ## Mode: status
 
-`WL doctor` and `WL due`; summarize coverage, gaps in months, entries by status, follow-ups due.
+`ML doctor` and `ML due`; summarize coverage, gaps in months, entries by status, follow-ups due.
 
 ## Mode: update
 
