@@ -9,7 +9,7 @@ argument-hint: "setup | extract [YYYY-MM | from..to] | compile [xyz|car|star|sum
 | Mode | What it does |
 |------|--------------|
 | **setup** | Creates the data home. Runs automatically when needed; asks the user nothing. |
-| **extract** | Reads chats for a window (default: the next uncovered month) → `logs/meritlog-YYYY-MM.md` |
+| **extract** | Reads chats for a window (default: the next uncovered month), then researches each entry in your connectors and on this device (never the web) → `logs/meritlog-YYYY-MM.md` |
 | **compile** | Turns the log into resume text with a strategy → `out/<strategy>-YYYY-MM-DD.md` |
 | **status** | Shows coverage, what's due, follow-ups |
 | **update** | Pulls the latest skill from its repo and reinstalls |
@@ -53,9 +53,36 @@ Read `references/safety.md` **before** writing anything in any mode. Every entry
    - The user's actions ≠ your suggestions. Unclear if they acted → `EXPLORED`. "We did X" → `my_role: contributed` unless they said they owned/led it.
    - Continuing an existing id → `op: update`, same id, FULL entry. New work → `op: create`.
    - Skip trivial lookups. Apply safety rules **while** writing.
-6. **Write** `<home>/logs/meritlog-YYYY-MM.md` with an honest header: `chats_read` = conversations actually opened, `coverage_gaps`, `omitted`.
-7. **Gate**: `ML validate`. Fix every ERROR (SENSITIVE included; generalize the text, never remove a term from config to make it pass) and re-run until it passes. Then re-read the file yourself against `references/safety.md`: the blocklist only catches names, not descriptions of weaknesses or architecture.
-8. **Report**: entries created/updated, themes used or added, count of new blocked terms, coverage gaps, number omitted, the 3 most useful `open_questions`, and anything from `ML due`.
+6. **Research** each entry, using only the user's own data: the connectors available in this session and the data on this device. See **Research** below.
+7. **Write** `<home>/logs/meritlog-YYYY-MM.md` with an honest header: `chats_read` = conversations actually opened, `coverage_gaps`, `omitted`, `research`.
+8. **Gate**: `ML validate`. Fix every ERROR (SENSITIVE included; generalize the text, never remove a term from config to make it pass) and re-run until it passes. Then re-read the file yourself against `references/safety.md`: the blocklist only catches names, not descriptions of weaknesses or architecture.
+9. **Report**: entries created/updated, how many research confirmed or upgraded (and from which source types), themes used or added, count of new blocked terms, coverage gaps, number omitted, the 3 most useful `open_questions`, and anything from `ML due`.
+
+## Research (part of extract)
+
+Goal: find facts about each entry that the original chat didn't contain. That means whether it shipped, what the outcome was, and its real scale. Research every entry that is `IN_PROGRESS` or `EXPLORED`, has `result: not stated`, or has no `metrics`, plus any open `follow_up_after` that is due. Spend about 10 lookups per entry at most.
+
+**Allowed sources (the user's own data only):**
+- **This device:**
+  - Claude Code sessions and chats from later months.
+  - Git history in the repos the work happened in: the `cwd` of the related Claude Code sessions, or repos named in chat. Use `git log --author=<the user's git email>` with the entry's dates, plus branches, tags and merge commits.
+  - Local documents, but only ones a chat or session points to.
+- **Connectors available in this session**, whatever they are (GitHub/GitLab, Jira/Linear, Confluence/Notion, Slack, Google Drive, …):
+  - PRs and MRs the user authored or merged.
+  - Tickets assigned to or resolved by the user.
+  - Docs the user wrote.
+  - The user's own messages announcing a result.
+  - Search by the entry's keywords and filter by the user's identity and dates.
+
+**Rules:**
+- **Never use the web.** No web search or web fetch, for facts or for "context". It isn't the user's data, and a query containing internal terms leaks them.
+- **Read only.** Never post, comment, edit, transition, react, or mark anything read through a connector or in git.
+- **Only the user's own work counts.** A finding counts only if it's about the user's own action or its explicit outcome. Other people's messages count only as outcome evidence ("merged", "rolled out to all teams"), never as credit for the user.
+- **Upgrade only on explicit evidence.** Merged, deployed, or closed as done → `CONFIRMED`. A number goes into `metrics`/`scope` only if a source states it; never derive one, for example by counting files yourself. If sources conflict, keep the weaker status and add an `open_question`.
+- **Record each finding generically** in `evidence` with its type and date, e.g. `PR merged 2026-10-14 (GitHub connector)`. Never copy ticket keys, PR or ticket titles, repo names, URLs, channel names, or quotes. Add the source type to `source` (`git`, `connector`, `local_file`).
+- **Everything you find is internal.** Apply `references/safety.md` to it. Add every new sensitive name you see to `blocked_terms` before writing.
+- **Report what was unavailable, then move on.** If a source can't be reached (no connector, repo not on this device), list it in `coverage_gaps` and continue. Never guess what it would have said.
+- **Write the header summary:** `research: { checked: [<source types actually queried>], entries_researched: N, upgraded: N }`.
 
 ## Mode: compile
 

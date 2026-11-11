@@ -179,6 +179,14 @@ class MeritlogTest(unittest.TestCase):
         _, _, rep = meritlog.load_all([str(self.dir)], self.cfg())
         self.assertTrue(any("window gap" in w for w in rep.warnings))
 
+    def test_research_sources_are_valid(self):
+        self.write("meritlog-2026-01.md", make_file(
+            JAN, "ML-0002", [("ML-0001", "IN_PROGRESS")],
+            [entry("ML-0001").replace("source: [claude_chat]",
+                                      "source: [claude_chat, git, connector, local_file]")]))
+        _, _, rep = meritlog.load_all([str(self.dir)], self.cfg())
+        self.assertEqual(rep.errors, [])
+
     def test_due_lists_followups(self):
         self.good_pair()
         _, state, _ = meritlog.load_all([str(self.dir)], self.cfg())

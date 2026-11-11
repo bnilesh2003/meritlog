@@ -7,6 +7,7 @@ A Claude skill that keeps an evidence-based, confidentiality-safe log of your wo
 ## What it does
 
 - **extract**: reads your Claude chats one month at a time and records only what they say you did. No invented results or metrics.
+- **research**: for each entry, looks for what the chat didn't say (did it ship, what was the outcome, real scale) in your own data only: connectors in the session (GitHub, Jira, Slack, Drive…) and this device (later sessions, git history). Never the web, read-only, and every finding is cited.
 - **compile**: turns the log into resume text; missing numbers become `[NEEDS METRIC: …]` questions for you.
 - **Confidentiality by default**: entries are written to pass the "would I say this in an interview at a competitor?" test. While reading your chats, Claude collects every sensitive name it meets (customers, colleagues, codenames, hostnames) into a private blocklist, and a validator refuses any log or output that contains one. Nothing about what's sensitive is hard-coded.
 

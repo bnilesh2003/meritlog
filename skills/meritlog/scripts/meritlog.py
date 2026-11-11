@@ -43,7 +43,8 @@ MONTH_RE = re.compile(r"^\d{4}-\d{2}$")
 OPS = {"create", "update"}
 CATEGORIES = {"project", "collaboration_mentorship", "design_docs", "org_building",
               "incident_response", "learning", "outside_work"}
-SOURCES = {"claude_chat", "claude_code", "user_recalled", "session_end"}
+SOURCES = {"claude_chat", "claude_code", "user_recalled", "session_end",
+           "git", "connector", "local_file"}  # last three: research on the user's own data
 STATUSES = {"CONFIRMED", "IN_PROGRESS", "EXPLORED", "ABANDONED"}
 ROLES = {"owned", "led", "contributed", "assisted", "unclear"}
 REQUIRED = ["id", "op", "title", "theme", "category", "source", "period", "status",
